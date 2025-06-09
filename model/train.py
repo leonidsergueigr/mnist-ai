@@ -114,7 +114,7 @@ print("\n=== ENTRAÎNEMENT ===")
 history = model.fit(
     x_train_split, y_train_split,
     batch_size=128,
-    epochs=100,  # Plus d'époques avec early stopping
+    epochs=100,
     validation_data=(x_val, y_val),
     callbacks=callbacks,
     verbose=1

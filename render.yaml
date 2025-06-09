@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: mnist-ai
+    env: python
+    region: oregon
+    plan: starter 
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: |
+      gunicorn --bind 0.0.0.0:$PORT \
+               --workers 1 \
+               --timeout 120 \
+               --max-requests 100 \
+               --max-requests-jitter 10 \
+               --preload \
+               --worker-class sync \
+               --worker-connections 10 \
+               --log-level warning \
+               webapp.app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.7
+      - key: TF_CPP_MIN_LOG_LEVEL  
+        value: "3"
+      - key: TF_ENABLE_ONEDNN_OPTS
+        value: "0"
+      - key: CUDA_VISIBLE_DEVICES
+        value: "-1"
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: OPENBLAS_NUM_THREADS  
+        value: "1"

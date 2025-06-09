@@ -246,9 +246,6 @@ mnist-ai/
 │   └── 📁 templates/           
 │       └── 🌐 index.html       # Page HTML principale pour l'interface utilisateur
 ```
-
-```
-
 ## ⚠️ Limitations et Avertissements
 
 ### 🎯 **Limitations du Modèle**

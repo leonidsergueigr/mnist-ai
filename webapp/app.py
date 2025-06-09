@@ -1,23 +1,39 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 from flask import Flask, render_template, request, jsonify
-from tensorflow.keras.models import load_model
-from PIL import Image
 import numpy as np
 import io
 import base64
-import os
+import gc
+import threading
+from PIL import Image
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024
 
-model_path = "model/mnist_model.h5"
-if not os.path.exists(model_path):
-    raise FileNotFoundError(f"Le fichier modèle '{model_path}' n'existe pas. Assurez-vous d'avoir entraîné le modèle d'abord.")
+model = None
+model_lock = threading.Lock()
 
-print("Chargement du modèle...")
-model = load_model(model_path)
-print("✅ Modèle chargé avec succès!")
-
-print(f"Forme d'entrée attendue par le modèle: {model.input_shape}")
-print(f"Forme de sortie du modèle: {model.output_shape}")
+def load_model_minimal():
+    """Chargement ultra-optimisé du modèle"""
+    global model
+    if model is None:
+        with model_lock:
+            if model is None:
+                # Import uniquement quand nécessaire
+                from tensorflow.keras.models import load_model
+                
+                model_path = "model/mnist_model.h5"
+                if not os.path.exists(model_path):
+                    raise FileNotFoundError(f"Modèle non trouvé: {model_path}")
+                
+                print("Chargement modèle...")
+                model = load_model(model_path)
+                
+                gc.collect()
+                print(f"✅ Modèle chargé - RAM optimisée")
+    return model
 
 @app.route("/")
 def index():
@@ -26,55 +42,52 @@ def index():
 @app.route("/predict", methods=["POST"])
 def predict():
     try:
-        data = request.json['image']
-        header, encoded = data.split(",", 1)
+        data = request.get_json()
+        if not data or 'image' not in data:
+            return jsonify({"error": "Données manquantes", "status": "error"}), 400
         
+        image_data = data['image']
+        if len(image_data) > 500000:
+            return jsonify({"error": "Image trop grosse", "status": "error"}), 400
+        
+        _, encoded = image_data.split(",", 1)
         img_bytes = base64.b64decode(encoded)
         
         img = Image.open(io.BytesIO(img_bytes))
+        img_array = np.array(img.convert("L").resize((28, 28)), dtype=np.float32)
+        img_array = (img_array / 255.0).reshape(1, 784)
         
-        img = img.convert("L").resize((28, 28))
+        del img_bytes, encoded, img
         
-        img_array = np.array(img)
-        
-        img_array = img_array.astype('float32') / 255.0
-        
-        img_flattened = img_array.reshape(1, 28*28)
-        
-        print(f"Forme de l'image envoyée au modèle: {img_flattened.shape}")
-        
-        pred = model.predict(img_flattened, verbose=0)
+        current_model = load_model_minimal()
+        pred = current_model.predict(img_array, verbose=0, batch_size=1)
         
         digit = int(np.argmax(pred))
         confidence = float(np.max(pred))
         
-        print(f"Prédiction: {digit}, Confiance: {confidence:.4f}")
+        del img_array, pred
+        gc.collect()
         
         return jsonify({
-            "digit": digit, 
+            "digit": digit,
             "confidence": confidence,
             "status": "success"
         })
         
     except Exception as e:
-        print(f"Erreur lors de la prédiction: {str(e)}")
-        return jsonify({
-            "error": str(e),
-            "status": "error"
-        }), 500
+        gc.collect() 
+        return jsonify({"error": "Erreur traitement", "status": "error"}), 500
 
 @app.route("/health")
 def health():
-    """Route de santé pour vérifier que l'API fonctionne"""
-    return jsonify({
-        "status": "healthy",
-        "model_loaded": model is not None,
-        "model_input_shape": str(model.input_shape),
-        "model_output_shape": str(model.output_shape)
-    })
+    return jsonify({"status": "ok", "ram_optimized": True})
+
+@app.after_request
+def cleanup(response):
+    gc.collect()
+    return response
 
 if __name__ == "__main__":
-    print("Démarrage de l'application Flask...")
-    print("🚀 Application disponible sur: http://localhost:5000")
-    print("🔍 Route de santé disponible sur: http://localhost:5000/health")
-    app.run(host='0.0.0.0', port=5000)
+    # Configuration minimaliste
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)

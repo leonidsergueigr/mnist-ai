@@ -1,187 +1,295 @@
 <!DOCTYPE html>
 <html lang="fr">
-
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Reconnaissance de Chiffres Manuscrits</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    animation: {
-                        "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-                        "bounce-gentle": "bounce 2s infinite",
-                        gradient: "gradient 6s ease infinite",
-                    },
-                    keyframes: {
-                        gradient: {
-                            "0%, 100%": {
-                                "background-size": "200% 200%",
-                                "background-position": "left center",
-                            },
-                            "50%": {
-                                "background-size": "200% 200%",
-                                "background-position": "right center",
-                            },
-                        },
-                    },
-                },
-            },
-        };
-    </script>
+    <title>Reconnaissance de Chiffres</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .title {
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            font-weight: bold;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ffd89b, #19547b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        @media (min-width: 768px) {
+            .main-grid {
+                grid-template-columns: 2fr 1fr;
+            }
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .canvas-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        #canvas {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            background: #000;
+            cursor: crosshair;
+            max-width: 100%;
+            height: auto;
+            transition: border-color 0.3s;
+        }
+        
+        #canvas:hover {
+            border-color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 120px;
+            justify-content: center;
+        }
+        
+        .btn-clear {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+        }
+        
+        .btn-predict {
+            background: linear-gradient(45deg, #00d2d3, #54a0ff);
+            color: white;
+        }
+        
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .info-section h3 {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            opacity: 0.8;
+        }
+        
+        .info-value {
+            font-weight: 600;
+        }
+        
+        .result-area {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .loading {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top: 2px solid #ffd700;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .result-success {
+            color: #00d2d3;
+        }
+        
+        .result-error {
+            color: #ff6b6b;
+        }
+        
+        .confidence-bar {
+            width: 100%;
+            max-width: 200px;
+            height: 8px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px auto;
+        }
+        
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d2d3, #54a0ff);
+            border-radius: 4px;
+            transition: width 1s ease-out;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            opacity: 0.7;
+            font-size: 0.9rem;
+        }
+        
+        .warning {
+            background: rgba(255, 193, 7, 0.2);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 15px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        
+        .warning h4 {
+            color: #ffc107;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .warning p {
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+    </style>
 </head>
-
-<body class="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-    <!-- Particules d'arrière-plan -->
-    <div class="fixed inset-0 overflow-hidden pointer-events-none">
-        <div class="absolute top-10 left-10 w-2 h-2 bg-white rounded-full opacity-20 animate-pulse-slow"></div>
-        <div class="absolute top-20 right-20 w-3 h-3 bg-purple-300 rounded-full opacity-30 animate-bounce-gentle"></div>
-        <div class="absolute bottom-20 left-20 w-1 h-1 bg-blue-300 rounded-full opacity-40 animate-pulse"></div>
-        <div class="absolute bottom-10 right-10 w-2 h-2 bg-indigo-300 rounded-full opacity-25 animate-bounce"></div>
-    </div>
-
-    <div class="container mx-auto px-4 py-6 md:py-12 relative z-10">
-        <!-- Header avec informations du modèle -->
-        <div class="max-w-6xl mx-auto">
-            <!-- Titre principal -->
-            <div class="text-center mb-8 md:mb-12">
-                <h1
-                    class="text-4xl md:text-6xl font-bold text-white mb-4 bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent animate-gradient">
-                    🎨 Reconnaissance de Chiffres
-                </h1>
-                <p class="text-lg md:text-xl text-purple-200 opacity-90">
-                    Intelligence Artificielle • Réseau de Neurones • MNIST Dataset
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">🎨 Reconnaissance de Chiffres</h1>
+            <p class="subtitle">Intelligence Artificielle • Réseau de Neurones • MNIST</p>
+        </div>
+        
+        <div class="main-grid">
+            <div class="card">
+                <h2 style="text-align: center; margin-bottom: 20px;">Zone de Dessin</h2>
+                <p style="text-align: center; margin-bottom: 20px; opacity: 0.8;">
+                    Dessinez un chiffre de 0 à 9 dans le cadre ci-dessous
                 </p>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 mb-8">
-                <!-- Section principale - Canvas -->
-                <div class="lg:col-span-2">
-                    <div class="bg-white/10 backdrop-blur-xl rounded-3xl p-6 md:p-8 border border-white/20 shadow-2xl">
-                        <div class="text-center mb-6">
-                            <h2 class="text-xl md:text-2xl font-semibold text-white mb-2">
-                                Zone de Dessin
-                            </h2>
-                            <p class="text-purple-200 text-sm md:text-base">
-                                Dessinez un chiffre de 0 à 9 dans le cadre ci-dessous
-                            </p>
-                        </div>
-
-                        <div class="flex justify-center mb-6">
-                            <div class="relative">
-                                <canvas id="canvas" width="400" height="400"
-                                    class="border-4 border-white/30 rounded-2xl bg-black cursor-crosshair shadow-xl hover:border-white/60 transition-all duration-300 max-w-full h-auto"></canvas>
-                                <div
-                                    class="absolute -top-2 -right-2 w-4 h-4 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full animate-pulse">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="flex flex-col sm:flex-row gap-3 justify-center">
-                            <button onclick="clearCanvas()"
-                                class="px-6 py-3 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-semibold rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg flex items-center justify-center gap-2">
-                                <span class="text-lg">🗑️</span>
-                                Effacer
-                            </button>
-                            <button onclick="predict()" id="predictBtn"
-                                class="px-8 py-3 bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white font-semibold rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
-                                <span class="text-lg">🔍</span>
-                                Prédire
-                            </button>
-                        </div>
-                    </div>
+                <div class="canvas-container">
+                    <canvas id="canvas" width="300" height="300"></canvas>
                 </div>
-
-                <!-- Informations du modèle -->
-                <div class="space-y-6">
-                    <!-- Informations techniques -->
-                    <div class="bg-white/10 backdrop-blur-xl rounded-3xl p-6 border border-white/20 shadow-2xl">
-                        <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                            <span class="text-xl">🧠</span>
-                            Modèle IA
-                        </h3>
-                        <div class="space-y-3 text-sm">
-                            <div class="flex justify-between items-center">
-                                <span class="text-purple-200">Architecture:</span>
-                                <span class="text-white font-medium">Dense Profond</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-purple-200">Couches:</span>
-                                <span class="text-white font-medium">512→256→128→64→10</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-purple-200">Paramètres:</span>
-                                <span class="text-white font-medium">~500K</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-purple-200">Dataset:</span>
-                                <span class="text-white font-medium">MNIST (70K images)</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-purple-200">Précision:</span>
-                                <span class="text-emerald-400 font-bold">~98.5%</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Techniques utilisées -->
-                    <div class="bg-white/10 backdrop-blur-xl rounded-3xl p-6 border border-white/20 shadow-2xl">
-                        <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                            <span class="text-xl">⚡</span>
-                            Optimisations
-                        </h3>
-                        <div class="space-y-2 text-sm">
-                            <div class="flex items-center gap-2">
-                                <div class="w-2 h-2 bg-emerald-400 rounded-full"></div>
-                                <span class="text-purple-200">Batch Normalization</span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <div class="w-2 h-2 bg-blue-400 rounded-full"></div>
-                                <span class="text-purple-200">Dropout (30-40%)</span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <div class="w-2 h-2 bg-purple-400 rounded-full"></div>
-                                <span class="text-purple-200">Early Stopping</span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <div class="w-2 h-2 bg-pink-400 rounded-full"></div>
-                                <span class="text-purple-200">Learning Rate Decay</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Avertissement -->
-                    <div class="bg-amber-500/20 backdrop-blur-xl rounded-3xl p-6 border border-amber-400/30 shadow-2xl">
-                        <h3 class="text-lg font-semibold text-amber-300 mb-3 flex items-center gap-2">
-                            <span class="text-xl">⚠️</span>
-                            Important
-                        </h3>
-                        <p class="text-amber-100 text-sm leading-relaxed">
-                            Ce modèle d'IA peut commettre des erreurs. Les prédictions sont
-                            basées sur des probabilités et ne sont pas infaillibles.
-                            Utilisez les résultats avec discernement.
-                        </p>
-                    </div>
+                <div class="button-group">
+                    <button class="btn btn-clear" onclick="clearCanvas()">
+                        🗑️ Effacer
+                    </button>
+                    <button class="btn btn-predict" id="predictBtn" onclick="predict()">
+                        🔍 Prédire
+                    </button>
                 </div>
             </div>
-
-            <!-- Zone de résultat intégrée -->
-            <div class="bg-black/20 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
-                <div id="result"
-                    class="text-center text-lg font-semibold text-purple-200 min-h-12 flex items-center justify-center">
-                    Dessinez un chiffre et cliquez sur "Prédire" ! ✨
+            
+            <div>
+                <div class="card info-section">
+                    <h3>🧠 Modèle IA</h3>
+                    <div class="info-item">
+                        <span class="info-label">Architecture:</span>
+                        <span class="info-value">Dense Profond</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Dataset:</span>
+                        <span class="info-value">MNIST</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Précision:</span>
+                        <span class="info-value result-success">~98.5%</span>
+                    </div>
+                </div>
+                
+                <div class="warning">
+                    <h4>⚠️ Important</h4>
+                    <p>Ce modèle peut commettre des erreurs. Utilisez les résultats avec discernement.</p>
                 </div>
             </div>
-
-            <!-- Footer -->
-            <div class="text-center mt-8 md:mt-12">
-                <p class="text-purple-300 text-sm opacity-75">
-                    Powered by TensorFlow • Optimisé avec BatchNorm & Dropout • MNIST
-                    Dataset
-                </p>
-            </div>
+        </div>
+        
+        <div class="result-area" id="result">
+            Dessinez un chiffre et cliquez sur "Prédire" ! ✨
+        </div>
+        
+        <div class="footer">
+            Powered by TensorFlow • MNIST Dataset
         </div>
     </div>
 
@@ -190,89 +298,91 @@
         const ctx = canvas.getContext("2d");
         const resultDiv = document.getElementById("result");
         const predictBtn = document.getElementById("predictBtn");
-
+        
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-
+        
         let drawing = false;
-
+        let lastX = null;
+        let lastY = null;
+        
         function resizeCanvas() {
             const containerWidth = canvas.parentElement.clientWidth;
-            const maxSize = Math.min(containerWidth - 40, 400);
+            const maxSize = Math.min(containerWidth - 40, 300);
             canvas.style.width = maxSize + "px";
             canvas.style.height = maxSize + "px";
         }
-
+        
         window.addEventListener("resize", resizeCanvas);
         resizeCanvas();
-
-        let lastX = null;
-        let lastY = null;
-
+        
         canvas.addEventListener("mousedown", startDrawing);
         canvas.addEventListener("mouseup", stopDrawing);
         canvas.addEventListener("mousemove", draw);
         canvas.addEventListener("mouseleave", stopDrawing);
-
-        canvas.addEventListener("touchstart", handleTouch);
-        canvas.addEventListener("touchmove", handleTouch);
+        
+        canvas.addEventListener("touchstart", handleTouch, { passive: false });
+        canvas.addEventListener("touchmove", handleTouch, { passive: false });
         canvas.addEventListener("touchend", stopDrawing);
-
+        
         function startDrawing(e) {
             drawing = true;
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            lastX = e.offsetX * scaleX;
-            lastY = e.offsetY * scaleY;
+            const coords = getCoordinates(e);
+            lastX = coords.x;
+            lastY = coords.y;
             drawAtPosition(lastX, lastY);
         }
-
+        
         function stopDrawing() {
             drawing = false;
             lastX = null;
             lastY = null;
         }
-
+        
+        function draw(e) {
+            if (!drawing) return;
+            const coords = getCoordinates(e);
+            if (lastX !== null && lastY !== null) {
+                drawLine(lastX, lastY, coords.x, coords.y);
+            }
+            lastX = coords.x;
+            lastY = coords.y;
+        }
+        
         function handleTouch(e) {
             e.preventDefault();
             const touch = e.touches[0];
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            const x = (touch.clientX - rect.left) * scaleX;
-            const y = (touch.clientY - rect.top) * scaleY;
-
+            const coords = getCoordinates(touch);
+            
             if (e.type === "touchstart") {
                 drawing = true;
-                lastX = x;
-                lastY = y;
-                drawAtPosition(x, y);
+                lastX = coords.x;
+                lastY = coords.y;
+                drawAtPosition(coords.x, coords.y);
             } else if (drawing && e.type === "touchmove") {
-                drawLine(lastX, lastY, x, y);
-                lastX = x;
-                lastY = y;
+                drawLine(lastX, lastY, coords.x, coords.y);
+                lastX = coords.x;
+                lastY = coords.y;
             }
         }
-
-        function draw(e) {
-            if (!drawing) return;
+        
+        function getCoordinates(e) {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
-            const x = e.offsetX * scaleX;
-            const y = e.offsetY * scaleY;
-
-            if (lastX !== null && lastY !== null) {
-                drawLine(lastX, lastY, x, y);
-            }
-            lastX = x;
-            lastY = y;
+            
+            const clientX = e.clientX || e.offsetX;
+            const clientY = e.clientY || e.offsetY;
+            
+            return {
+                x: (clientX - (e.clientX ? rect.left : 0)) * scaleX,
+                y: (clientY - (e.clientY ? rect.top : 0)) * scaleY
+            };
         }
-
+        
         function drawLine(x1, y1, x2, y2) {
             ctx.strokeStyle = "white";
-            ctx.lineWidth = 20;
+            ctx.lineWidth = 15;
             ctx.lineCap = "round";
             ctx.lineJoin = "round";
             ctx.beginPath();
@@ -280,98 +390,81 @@
             ctx.lineTo(x2, y2);
             ctx.stroke();
         }
-
+        
         function drawAtPosition(x, y) {
             ctx.fillStyle = "white";
             ctx.beginPath();
-            ctx.arc(x, y, 10, 0, 2 * Math.PI);
+            ctx.arc(x, y, 8, 0, 2 * Math.PI);
             ctx.fill();
         }
-
+        
         function clearCanvas() {
             ctx.fillStyle = "black";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            resultDiv.innerHTML =
-                'Dessinez un chiffre et cliquez sur "Prédire" ! ✨';
-            resultDiv.className =
-                "text-center text-lg font-semibold text-purple-200 min-h-12 flex items-center justify-center";
+            resultDiv.innerHTML = 'Dessinez un chiffre et cliquez sur "Prédire" ! ✨';
+            resultDiv.className = "result-area";
         }
-
+        
         async function predict() {
             predictBtn.disabled = true;
             resultDiv.innerHTML = `
-                <div class="flex items-center justify-center gap-3">
-                    <div class="w-6 h-6 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
-                    <span class="text-yellow-400">Analyse en cours...</span>
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <span>Analyse en cours...</span>
                 </div>
             `;
-            resultDiv.className =
-                "text-center text-lg font-semibold min-h-12 flex items-center justify-center";
-
+            
             try {
-                const dataURL = canvas.toDataURL();
-
+                const dataURL = canvas.toDataURL("image/png", 0.8);
                 const response = await fetch("/predict", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ image: dataURL }),
                 });
-
+                
                 const data = await response.json();
-
+                
                 if (data.status === "success") {
                     const confidence = (data.confidence * 100).toFixed(1);
                     resultDiv.innerHTML = `
-                        <div class="text-center">
-                            <div class="text-2xl md:text-4xl font-bold text-emerald-400 mb-2">
-                                🎯 Résultat : <span class="text-white">${data.digit}</span>
+                        <div>
+                            <div style="font-size: 2rem; font-weight: bold; color: #00d2d3; margin-bottom: 10px;">
+                                🎯 Résultat : ${data.digit}
                             </div>
-                            <div class="text-emerald-300 mb-4">
+                            <div style="margin-bottom: 10px;">
                                 📊 Confiance : ${confidence}%
                             </div>
-                            <div class="w-full max-w-xs mx-auto bg-white/20 rounded-full h-3 overflow-hidden">
-                                <div class="h-full bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full transition-all duration-1000 ease-out" 
-                                     style="width: ${confidence}%"></div>
+                            <div class="confidence-bar">
+                                <div class="confidence-fill" style="width: ${confidence}%"></div>
                             </div>
                         </div>
                     `;
-                    resultDiv.className =
-                        "text-center min-h-12 flex items-center justify-center";
                 } else {
                     throw new Error(data.error || "Erreur inconnue");
                 }
             } catch (error) {
                 console.error("Erreur:", error);
                 resultDiv.innerHTML = `
-                    <div class="text-center">
-                        <div class="text-red-400 text-xl font-semibold">❌ Erreur</div>
-                        <div class="text-red-300 text-sm mt-1">${error.message}</div>
+                    <div class="result-error">
+                        <div style="font-size: 1.2rem; margin-bottom: 5px;">❌ Erreur</div>
+                        <div style="font-size: 0.9rem;">${error.message}</div>
                     </div>
                 `;
-                resultDiv.className =
-                    "text-center min-h-16 flex items-center justify-center";
             } finally {
                 predictBtn.disabled = false;
             }
         }
-
+        
         window.addEventListener("load", async () => {
             try {
                 const response = await fetch("/health");
-                const health = await response.json();
-                console.log("État de l'API:", health);
+                if (response.ok) {
+                    console.log("API connectée");
+                }
             } catch (error) {
-                console.warn("Impossible de vérifier l'état de l'API:", error);
-                const footer = document.querySelector("footer") || document.body;
-                const notice = document.createElement("div");
-                notice.className =
-                    "fixed bottom-4 right-4 bg-amber-500/20 text-amber-300 px-4 py-2 rounded-lg text-sm backdrop-blur-sm border border-amber-400/30";
-                notice.textContent = "Mode démo - API non connectée";
-                document.body.appendChild(notice);
-                setTimeout(() => notice.remove(), 5000);
+                console.warn("API déconnectée");
             }
         });
     </script>
 </body>
-
 </html>
